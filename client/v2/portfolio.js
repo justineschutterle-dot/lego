@@ -79,8 +79,9 @@ const renderDeals = deals => {
       return `
       <div class="deal" id=${deal.uuid}>
         <span>${deal.id}</span>
-        <a href="${deal.link}">${deal.title}</a>
+        <a href="${deal.link}" target="_blank">${deal.title}</a>
         <span>${deal.price}</span>
+        <button class="favorite-btn" data-id="${deal.uuid}">⭐ Favorite</button>
       </div>
     `;
     })
@@ -156,4 +157,107 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   setCurrentDeals(deals);
   render(currentDeals, currentPagination);
+});
+
+// Feature 1 - Browse pages
+selectPage.addEventListener('change', async (event) => {
+  const deals = await fetchDeals(parseInt(event.target.value), parseInt(selectShow.value));
+  setCurrentDeals(deals);
+  render(currentDeals, currentPagination);
+});
+
+// Feature 2 - Filter by best discount
+document.querySelector('#filter-discount').addEventListener('click', () => {
+  const filteredDeals = currentDeals.filter(deal => deal.discount > 50);
+  renderDeals(filteredDeals);
+});
+
+// Feature 3 - Filter by most commented
+document.querySelector('#filter-commented').addEventListener('click', () => {
+  const filteredDeals = currentDeals.filter(deal => deal.comments > 15);
+  renderDeals(filteredDeals);
+});
+
+// Feature 4 - Filter by hot deals
+document.querySelector('#filter-hot').addEventListener('click', () => {
+  const filteredDeals = currentDeals.filter(deal => deal.temperature > 100);
+  renderDeals(filteredDeals);
+});
+
+// Feature 5 - Sort
+document.querySelector('#sort-select').addEventListener('change', (event) => {
+  let sortedDeals = [...currentDeals];
+
+  if (event.target.value === 'price-asc') {
+    sortedDeals.sort((a, b) => a.price - b.price);
+  } else if (event.target.value === 'price-desc') {
+    sortedDeals.sort((a, b) => b.price - a.price);
+  } else if (event.target.value === 'date-asc') {
+    sortedDeals.sort((a, b) => a.published - b.published);
+  } else if (event.target.value === 'date-desc') {
+    sortedDeals.sort((a, b) => b.published - a.published);
+  }
+
+  renderDeals(sortedDeals);
+});
+
+// Feature 7 - Display Vinted sales
+const fetchSales = async (id) => {
+  const response = await fetch(`https://lego-api-blue.vercel.app/sales?id=${id}`);
+  const body = await response.json();
+  if (body.success !== true) return [];
+  return body.data.result;
+};
+
+const renderSales = sales => {
+  const section = document.querySelector('#sales');
+  const template = sales.map(sale => `
+    <div class="sale">
+      <a href="${sale.link}" target="_blank">${sale.title}</a>
+      <span>${sale.price.amount}€</span>
+    </div>
+  `).join('');
+  section.innerHTML = '<h2>Sales</h2>' + template;
+
+  // Feature 8 - Number of sales
+  document.querySelector('#nbSales').innerHTML = sales.length;
+
+  // Feature 9 - p5, p25, p50
+  const prices = sales.map(s => parseFloat(s.price.amount)).sort((a, b) => a - b);
+  const p5 = prices[Math.floor(prices.length * 0.05)];
+  const p25 = prices[Math.floor(prices.length * 0.25)];
+  const p50 = prices[Math.floor(prices.length * 0.50)];
+
+  document.querySelector('#p5').innerHTML = p5 || 0;
+  document.querySelector('#p25').innerHTML = p25 || 0;
+  document.querySelector('#p50').innerHTML = p50 || 0;
+
+  // Feature 10 - Lifetime value
+  const dates = sales.map(s => new Date(s.published)).sort((a, b) => a - b);
+  const lifetime = Math.round((dates[dates.length-1] - dates[0]) / (1000 * 60 * 60 * 24));
+  document.querySelector('#lifetime').innerHTML = lifetime + ' days';
+};
+
+selectLegoSetIds.addEventListener('change', async (event) => {
+  const sales = await fetchSales(event.target.value);
+  renderSales(sales);
+});
+// Feature 13 - Save as favorite
+let favorites = JSON.parse(localStorage.getItem('favorites')) || [];
+
+document.addEventListener('click', (event) => {
+  if (event.target.classList.contains('favorite-btn')) {
+    const id = event.target.dataset.id;
+    if (!favorites.includes(id)) {
+      favorites.push(id);
+      localStorage.setItem('favorites', JSON.stringify(favorites));
+      alert('Deal saved as favorite!');
+    }
+  }
+});
+
+// Feature 14 - Filter by favorites
+document.querySelector('#filter-favorites').addEventListener('click', () => {
+  const favoritedDeals = currentDeals.filter(deal => favorites.includes(deal.uuid));
+  renderDeals(favoritedDeals);
 });
